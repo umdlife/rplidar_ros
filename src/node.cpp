@@ -45,6 +45,7 @@
 
 using namespace rp::standalone::rplidar;
 int pwm;
+int mode;
 RPlidarDriver * drv = NULL;
 
 void publish_scan(ros::Publisher *pub,
@@ -111,25 +112,25 @@ bool getRPLIDARDeviceInfo(RPlidarDriver * drv)
     op_result = drv->getDeviceInfo(devinfo);
     if (IS_FAIL(op_result)) {
         if (op_result == RESULT_OPERATION_TIMEOUT) {
-            fprintf(stderr, "Error, operation time out.\n");
+            ROS_WARN_STREAM(stderr << "getRPLIDARDeviceInfo Error, operation time out.");
         } else {
-            fprintf(stderr, "Error, unexpected error, code: %x\n", op_result);
+            ROS_WARN_STREAM(stderr << "getRPLIDARDeviceInfo Error, unexpected error, code: " << op_result);
         }
         return false;
     }
 
     // print out the device serial number, firmware and hardware version number..
-    printf("RPLIDAR S/N: ");
+    std::ostringstream SN;
     for (int pos = 0; pos < 16 ;++pos) {
-        printf("%02X", devinfo.serialnum[pos]);
+        SN << std::uppercase << std::setfill('0') << std::setw(2) << std::hex << int(devinfo.serialnum[pos]);
     }
+    ROS_INFO_STREAM("RPLIDAR S/N: " << SN.str());
 
-    printf("\n"
-           "Firmware Ver: %d.%02d\n"
-           "Hardware Rev: %d\n"
-           , devinfo.firmware_version>>8
-           , devinfo.firmware_version & 0xFF
-           , (int)devinfo.hardware_version);
+    ROS_INFO("Firmware Ver: %d.%02d"
+             , devinfo.firmware_version>>8
+             , devinfo.firmware_version & 0xFF);
+    ROS_INFO("Hardware Rev: %d"
+             , (int)devinfo.hardware_version);
     return true;
 }
 
@@ -140,19 +141,22 @@ bool checkRPLIDARHealth(RPlidarDriver * drv)
 
     op_result = drv->getHealth(healthinfo);
     if (IS_OK(op_result)) { 
-        printf("RPLidar health status : %d\n", healthinfo.status);
+        if(healthinfo.status == 0){
+            ROS_WARN("RPLidar health status OK : %d", healthinfo.status);
+        } else {
+            ROS_FATAL("RPLidar health status : %d", healthinfo.status);
+        }
         
         if (healthinfo.status == RPLIDAR_STATUS_ERROR) {
-            fprintf(stderr, "Error, rplidar internal error detected."
-                            "Please reboot the device to retry.\n");
+            ROS_FATAL_STREAM(stderr << "Error, rplidar internal error detected.");
+            ROS_FATAL_STREAM("Please reboot the device to retry.");
             return false;
         } else {
             return true;
         }
 
     } else {
-        fprintf(stderr, "Error, cannot retrieve rplidar health code: %x\n", 
-                        op_result);
+        ROS_FATAL_STREAM(stderr << "Error, cannot retrieve rplidar health code:" << op_result);
         return false;
     }
 }
@@ -177,8 +181,20 @@ bool start_motor(std_srvs::Empty::Request &req,
   ROS_DEBUG("Start motor");
   drv->startMotor();
   drv->setMotorPWM(pwm);
-  drv->startScan(0,1);;
+  drv->startScanExpress(0, mode);
   return true;
+}
+
+void show_available_modes(RPlidarDriver * drv) {
+    std::vector<RplidarScanMode> outModes;
+    drv->getAllSupportedScanModes(outModes);
+
+    for(int i=0; i<outModes.size(); i++){
+        ROS_INFO_STREAM("ID: " << outModes[i].id);
+        ROS_INFO_STREAM("   us_per_sample: " << outModes[i].us_per_sample);
+        ROS_INFO_STREAM("   max_distance: " << outModes[i].max_distance);
+        ROS_INFO_STREAM("   ans_type: " << outModes[i].ans_type);
+    }
 }
 
 int main(int argc, char * argv[]) {
@@ -190,6 +206,7 @@ int main(int argc, char * argv[]) {
     bool inverted = false;
     bool angle_compensate = true;
     pwm = DEFAULT_MOTOR_PWM;
+    mode = 0;
 
     ros::NodeHandle nh;
     ros::Publisher scan_pub = nh.advertise<sensor_msgs::LaserScan>("scan", 1000);
@@ -200,9 +217,9 @@ int main(int argc, char * argv[]) {
     pnh.param<bool>("inverted", inverted, inverted);
     pnh.param<bool>("angle_compensate", angle_compensate, angle_compensate);
     pnh.param<int>("pwm", pwm, pwm);
+    pnh.param<int>("mode", mode, mode);
 
-    printf("RPLIDAR running on ROS package rplidar_ros\n"
-           "SDK Version: "RPLIDAR_SDK_VERSION"\n");
+    ROS_INFO("SDK Version: "RPLIDAR_SDK_VERSION);
 
     u_result     op_result;
 
@@ -210,14 +227,13 @@ int main(int argc, char * argv[]) {
     drv = RPlidarDriver::CreateDriver(DRIVER_TYPE_SERIALPORT);
     
     if (!drv) {
-        fprintf(stderr, "Create Driver fail, exit\n");
+        ROS_FATAL_STREAM(stderr << "Create Driver fail, exit");
         return -2;
     }
 
     // make connection...
     if (IS_FAIL(drv->connect(serial_port.c_str(), (_u32)serial_baudrate))) {
-        fprintf(stderr, "Error, cannot bind to the specified serial port %s.\n"
-            , serial_port.c_str());
+        ROS_FATAL_STREAM(stderr << "Error, cannot bind to the specified serial port: " << serial_port.c_str());
         RPlidarDriver::DisposeDriver(drv);
         return -1;
     }
@@ -236,9 +252,12 @@ int main(int argc, char * argv[]) {
     ros::ServiceServer stop_motor_service = nh.advertiseService("stop_motor", stop_motor);
     ros::ServiceServer start_motor_service = nh.advertiseService("start_motor", start_motor);
 
+    show_available_modes(drv);
     drv->startMotor();
+    ROS_INFO_STREAM("Motor PWM: " << pwm);
     drv->setMotorPWM(pwm);
-    drv->startScan(0,1);
+    ROS_INFO_STREAM("Mode used: " << mode);
+    drv->startScanExpress(0, mode);
 
     ros::Time start_scan_time;
     ros::Time end_scan_time;
