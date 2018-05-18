@@ -18,6 +18,8 @@ find_package(catkin REQUIRED COMPONENTS
 include_directories(
   ${RPLIDAR_SDK_PATH}/include
   ${RPLIDAR_SDK_PATH}/src
+  ${RPLIDAR_SDK_PATH}/src/arch/linux
+  ${RPLIDAR_SDK_PATH}/src/hal
   ${catkin_INCLUDE_DIRS}
 )
 

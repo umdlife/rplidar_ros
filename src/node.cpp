@@ -44,7 +44,7 @@
 #define DEG2RAD(x) ((x)*M_PI/180.)
 
 using namespace rp::standalone::rplidar;
-
+int pwm;
 RPlidarDriver * drv = NULL;
 
 void publish_scan(ros::Publisher *pub,
@@ -176,7 +176,8 @@ bool start_motor(std_srvs::Empty::Request &req,
        return false;
   ROS_DEBUG("Start motor");
   drv->startMotor();
-  drv->startScan();;
+  drv->setMotorPWM(pwm);
+  drv->startScan(0,1);;
   return true;
 }
 
@@ -188,15 +189,17 @@ int main(int argc, char * argv[]) {
     std::string frame_id;
     bool inverted = false;
     bool angle_compensate = true;
+    pwm = DEFAULT_MOTOR_PWM;
 
     ros::NodeHandle nh;
     ros::Publisher scan_pub = nh.advertise<sensor_msgs::LaserScan>("scan", 1000);
-    ros::NodeHandle nh_private("~");
-    nh_private.param<std::string>("serial_port", serial_port, "/dev/ttyUSB0"); 
-    nh_private.param<int>("serial_baudrate", serial_baudrate, 115200); 
-    nh_private.param<std::string>("frame_id", frame_id, "laser_frame");
-    nh_private.param<bool>("inverted", inverted, false);
-    nh_private.param<bool>("angle_compensate", angle_compensate, true);
+    ros::NodeHandle pnh("~");
+    pnh.param<std::string>("serial_port", serial_port, "/dev/ttyUSB0"); 
+    pnh.param<int>("serial_baudrate", serial_baudrate, serial_baudrate); 
+    pnh.param<std::string>("frame_id", frame_id, "laser_frame");
+    pnh.param<bool>("inverted", inverted, inverted);
+    pnh.param<bool>("angle_compensate", angle_compensate, angle_compensate);
+    pnh.param<int>("pwm", pwm, pwm);
 
     printf("RPLIDAR running on ROS package rplidar_ros\n"
            "SDK Version: "RPLIDAR_SDK_VERSION"\n");
@@ -204,7 +207,7 @@ int main(int argc, char * argv[]) {
     u_result     op_result;
 
     // create the driver instance
-    drv = RPlidarDriver::CreateDriver(RPlidarDriver::DRIVER_TYPE_SERIALPORT);
+    drv = RPlidarDriver::CreateDriver(DRIVER_TYPE_SERIALPORT);
     
     if (!drv) {
         fprintf(stderr, "Create Driver fail, exit\n");
@@ -234,7 +237,8 @@ int main(int argc, char * argv[]) {
     ros::ServiceServer start_motor_service = nh.advertiseService("start_motor", start_motor);
 
     drv->startMotor();
-    drv->startScan();
+    drv->setMotorPWM(pwm);
+    drv->startScan(0,1);
 
     ros::Time start_scan_time;
     ros::Time end_scan_time;
@@ -314,5 +318,6 @@ int main(int argc, char * argv[]) {
     drv->stop();
     drv->stopMotor();
     RPlidarDriver::DisposeDriver(drv);
+    drv = NULL;
     return 0;
 }
