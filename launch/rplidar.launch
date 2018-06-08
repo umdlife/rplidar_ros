@@ -11,5 +11,5 @@
     <param name="pwm"                 type="int"    value="500"/>
     <param name="mode"                type="int"    value="1"/>
   </node>
-  <node name="static_transform_publisher_lidar_baselink" pkg="tf2_ros" type="static_transform_publisher" output="screen" respawn="true" args="$(arg lidar_position) laser $(arg base_link_frame)" />
+  <node name="static_transform_publisher_$(arg base_link_frame)_laser" pkg="tf2_ros" type="static_transform_publisher" output="screen" respawn="true" args="$(arg lidar_position) $(arg base_link_frame) laser" />
 </launch>
