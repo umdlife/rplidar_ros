@@ -1,7 +1,5 @@
 <launch>
-  <arg name="lidar_position" default="0.2 0 0 3.14159265359 0 0" />
-  <arg name="base_link_frame" default="base_link" />
-  <arg name="port" default="/dev/ttyUSB0" />
+  <arg name="port" default="/dev/ttySAC0" />
   <node name="rplidarNode"          pkg="rplidar_ros"  type="rplidarNode" output="screen">
     <param name="serial_port"         type="string" value="$(arg port)"/>  
     <param name="serial_baudrate"     type="int"    value="115200"/>
@@ -11,5 +9,6 @@
     <param name="pwm"                 type="int"    value="500"/>
     <param name="mode"                type="int"    value="1"/>
   </node>
-  <node name="static_transform_publisher_$(arg base_link_frame)_laser" pkg="tf2_ros" type="static_transform_publisher" output="screen" respawn="true" args="$(arg lidar_position) $(arg base_link_frame) laser" />
+
+  </node>
 </launch>
