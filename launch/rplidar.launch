@@ -9,6 +9,4 @@
     <param name="pwm"                 type="int"    value="500"/>
     <param name="mode"                type="int"    value="1"/>
   </node>
-
-  </node>
 </launch>
