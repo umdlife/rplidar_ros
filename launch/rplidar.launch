@@ -1,12 +1,17 @@
 <launch>
-  <arg name="port" default="/dev/ttySAC0" />
+  <arg name="port" default="/dev/ttyLidar" />
+  <arg name="pwm" default="1000" />
+  <arg name="frame_id" default="laser" />
+  <arg name="angle_compensate" default="true" />
+  <arg name="inverted" default="false" />
+  <arg name="mode" default="1" />
   <node name="rplidarNode"          pkg="rplidar_ros"  type="rplidarNode" output="screen">
     <param name="serial_port"         type="string" value="$(arg port)"/>  
     <param name="serial_baudrate"     type="int"    value="115200"/>
-    <param name="frame_id"            type="string" value="laser"/>
-    <param name="inverted"            type="bool"   value="false"/>
-    <param name="angle_compensate"    type="bool"   value="true"/>
-    <param name="pwm"                 type="int"    value="500"/>
-    <param name="mode"                type="int"    value="1"/>
+    <param name="frame_id"            type="string" value="$(arg frame_id)"/>
+    <param name="inverted"            type="bool"   value="$(arg inverted)"/>
+    <param name="angle_compensate"    type="bool"   value="$(arg angle_compensate)"/>
+    <param name="pwm"                 type="int"    value="$(arg pwm)"/>
+    <param name="mode"                type="int"    value="$(arg mode)"/>
   </node>
 </launch>
